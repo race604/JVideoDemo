@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+              android:layout_width="fill_parent"
+              android:layout_height="fill_parent"
+              android:keepScreenOn="true"
+    >
+    <com.race604.views.CameraPreviewView
+        android:id="@+id/camera_preview"
+        android:layout_width="fill_parent"
+        android:layout_height="wrap_content"
+        />
+
+    <FrameLayout
+                  android:orientation="horizontal"
+                  android:layout_below="@id/camera_preview"
+                  android:layout_width="fill_parent"
+                  android:gravity="center"
+                  android:background="@android:color/black"
+                  android:layout_height="match_parent"
+        >
+        <com.race604.views.CircleBackgroundTextView
+            android:id="@+id/button_start"
+            android:text="按住拍"
+            android:layout_width="100dp"
+            android:layout_height="100dp"
+            android:layout_gravity="center"
+            android:textColor="#DDD"
+            android:onClick="onClick"
+            />
+    </FrameLayout>
+
+    <TextView
+        android:id="@+id/filePathTextView"
+        android:layout_width="match_parent"
+        android:layout_alignParentBottom="true"
+        android:layout_height="wrap_content" />
+
+</RelativeLayout>
