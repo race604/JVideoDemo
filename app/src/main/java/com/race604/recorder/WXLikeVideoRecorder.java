@@ -6,6 +6,7 @@ import android.hardware.Camera;
 import android.media.AudioFormat;
 import android.media.AudioRecord;
 import android.media.MediaRecorder;
+import android.os.Environment;
 import android.text.TextUtils;
 import android.util.Log;
 
@@ -13,6 +14,7 @@ import com.race604.jvideo.JVideo;
 import com.race604.utils.FileUtil;
 import com.race604.views.CameraPreviewView;
 
+import java.io.IOException;
 import java.nio.ShortBuffer;
 
 /**
@@ -123,6 +125,9 @@ public class WXLikeVideoRecorder implements Camera.PreviewCallback, CameraPrevie
         return stopTime;
     }
 
+    private AudioCapturer mAudioCapturer;
+    private WavFileWriter mWavFileWirter;
+    private static final String DEFAULT_TEST_FILE = Environment.getExternalStorageDirectory() + "/test.wav";
     //---------------------------------------
     // initialize ffmpeg_recorder
     //---------------------------------------
@@ -139,8 +144,27 @@ public class WXLikeVideoRecorder implements Camera.PreviewCallback, CameraPrevie
 
         Log.i(TAG, "recorder initialize success");
 
-        audioRecordRunnable = new AudioRecordRunnable();
-        audioThread = new Thread(audioRecordRunnable);
+        //audioRecordRunnable = new AudioRecordRunnable();
+        //audioThread = new Thread(audioRecordRunnable);
+        mAudioCapturer = new AudioCapturer();
+        mWavFileWirter = new WavFileWriter();
+        try {
+            mWavFileWirter.openFile(DEFAULT_TEST_FILE, 44100, 16, 1);
+        } catch (IOException e) {
+            Log.e(TAG, "initRecorder: ", e);
+        }
+
+        mAudioCapturer.setOnAudioFrameCapturedListener(new AudioCapturer.OnAudioFrameCapturedListener() {
+            @Override
+            public void onAudioFrameCaptured(byte[] audioData) {
+                synchronized (mRecordLock) {
+                    long time = System.currentTimeMillis();
+                    recorder.encodeAudio(audioData);
+                    Log.d(TAG, "encodeAudio time = " + (System.currentTimeMillis() - time));
+                    //mWavFileWirter.writeData(audioData, 0, audioData.length);
+                }
+            }
+        });
         runAudioThread = true;
     }
 
@@ -199,7 +223,8 @@ public class WXLikeVideoRecorder implements Camera.PreviewCallback, CameraPrevie
         try {
             startTime = System.currentTimeMillis();
             recording = true;
-            audioThread.start();
+            //audioThread.start();
+            mAudioCapturer.startCapture();
         } catch (Exception e) {
             e.printStackTrace();
             started = false;
@@ -215,13 +240,19 @@ public class WXLikeVideoRecorder implements Camera.PreviewCallback, CameraPrevie
         stopTime = System.currentTimeMillis();
 
         runAudioThread = false;
+//        try {
+//            audioThread.join();
+//        } catch (InterruptedException e) {
+//            e.printStackTrace();
+//        }
+//        audioRecordRunnable = null;
+//        audioThread = null;
+        mAudioCapturer.stopCapture();
         try {
-            audioThread.join();
-        } catch (InterruptedException e) {
-            e.printStackTrace();
+            mWavFileWirter.closeFile();
+        } catch (IOException e) {
+            Log.e(TAG, "stopRecording: ", e);
         }
-        audioRecordRunnable = null;
-        audioThread = null;
 
         if (recorder != null && recording) {
 
@@ -250,11 +281,7 @@ public class WXLikeVideoRecorder implements Camera.PreviewCallback, CameraPrevie
                     recorder.encodeVideo(data);
                 }
                 time = System.currentTimeMillis() - time;
-                if (time > 33) {
-                    Log.e(TAG, "onPreviewFrame out: " + time);
-                } else {
-                    Log.d(TAG, "onPreviewFrame: " + time);
-                }
+                Log.d(TAG, "onPreviewFrame: " + (System.currentTimeMillis() - time));
             }
         } finally {
             camera.addCallbackBuffer(data);
@@ -298,6 +325,7 @@ public class WXLikeVideoRecorder implements Camera.PreviewCallback, CameraPrevie
     //---------------------------------------------
     // audio thread, gets and encodes audio data
     //---------------------------------------------
+
     class AudioRecordRunnable implements Runnable {
 
         @Override
@@ -306,7 +334,7 @@ public class WXLikeVideoRecorder implements Camera.PreviewCallback, CameraPrevie
 
             // Audio
             int bufferSize;
-            ShortBuffer audioData;
+            byte[] audioData;
             int bufferReadResult;
 
             bufferSize = AudioRecord.getMinBufferSize(SAMPLE_AUDIO_RATE_IN_HZ,
@@ -321,7 +349,15 @@ public class WXLikeVideoRecorder implements Camera.PreviewCallback, CameraPrevie
                     samples[i] = ShortBuffer.allocate(bufferSize);
                 }
             } else {
-                audioData = ShortBuffer.allocate(bufferSize);
+                audioData = new byte[bufferSize];
+            }
+            final String DEFAULT_TEST_FILE = Environment.getExternalStorageDirectory() + "/test.wav";
+            WavFileWriter wavFileWriter = new WavFileWriter();
+            try {
+                wavFileWriter.openFile(DEFAULT_TEST_FILE, SAMPLE_AUDIO_RATE_IN_HZ, 16, AudioFormat.CHANNEL_IN_MONO);
+            } catch (IOException e) {
+                Log.e(TAG, "open WavFileWriter error: ", e);
+                return;
             }
 
             Log.d(TAG, "audioRecord.startRecording()");
@@ -330,29 +366,38 @@ public class WXLikeVideoRecorder implements Camera.PreviewCallback, CameraPrevie
             /* ffmpeg_audio encoding loop */
             while (runAudioThread) {
                 if (RECORD_LENGTH > 0) {
-                    audioData = samples[samplesIndex++ % samples.length];
-                    audioData.position(0).limit(0);
+                    //audioData = samples[samplesIndex++ % samples.length];
+                    //audioData.position(0).limit(0);
                 }
                 //Log.v(LOG_TAG,"recording? " + recording);
-                bufferReadResult = audioRecord.read(audioData.array(), 0, audioData.capacity());
-                audioData.limit(bufferReadResult);
+                //bufferReadResult = audioRecord.read(audioData.array(), 0, audioData.capacity());
+                //audioData.limit(bufferReadResult);
+                bufferReadResult = audioRecord.read(audioData, 0, bufferSize);
                 if (bufferReadResult > 0) {
                     Log.v(TAG,"bufferReadResult: " + bufferReadResult);
                     // If "recording" isn't true when start this thread, it never get's set according to this if statement...!!!
                     // Why?  Good question...
                     if (recording) {
                         // TODO record audio
-                        short[] data = audioData.array();
-                        Log.d(TAG, "data capacity = " + audioData.capacity() + " length = " + data.length);
+                        //short[] data = audioData.array();
+                        //Log.d(TAG, "data capacity = " + audioData.capacity() + " length = " + data.length);
+                        Log.d(TAG, "read audio size: " + bufferReadResult);
                         long time = System.currentTimeMillis();
                         synchronized (mRecordLock) {
-                            recorder.encodeAudio(audioData.array());
+                            //recorder.encodeAudio(audioData.array());
+                            wavFileWriter.writeData(audioData, 0, audioData.length);
                         }
                         Log.d(TAG, "encodeAudio time = " + (System.currentTimeMillis() - time));
                     }
                 }
             }
             Log.v(TAG,"AudioThread Finished, release audioRecord");
+
+            try {
+                wavFileWriter.closeFile();
+            } catch (IOException e) {
+                Log.e(TAG, "Close WavFileWriter error: ", e);
+            }
 
             /* encoding finish, release recorder */
             if (audioRecord != null) {

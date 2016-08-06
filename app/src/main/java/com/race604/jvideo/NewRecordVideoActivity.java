@@ -12,10 +12,10 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import com.race604.camera.CameraHelper;
+import com.race604.jvideo.demo.R;
 import com.race604.recorder.WXLikeVideoRecorder;
 import com.race604.utils.FileUtil;
 import com.race604.views.CameraPreviewView;
-import com.race604.jvideo.demo.R;
 
 import java.lang.ref.WeakReference;
 
