@@ -281,7 +281,7 @@ public class WXLikeVideoRecorder implements Camera.PreviewCallback, CameraPrevie
                     recorder.encodeVideo(data);
                 }
                 time = System.currentTimeMillis() - time;
-                Log.d(TAG, "onPreviewFrame: " + (System.currentTimeMillis() - time));
+                Log.d(TAG, "onPreviewFrame: " + time);
             }
         } finally {
             camera.addCallbackBuffer(data);
