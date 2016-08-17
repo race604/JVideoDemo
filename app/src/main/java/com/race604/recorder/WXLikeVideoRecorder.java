@@ -139,6 +139,7 @@ public class WXLikeVideoRecorder implements Camera.PreviewCallback, CameraPrevie
         // 初始化时设置录像机的目标视频大小
         recorder = new JVideo();
         recorder.setVideoSize(480, 480);
+        recorder.setVideoBitRate(600000);
         recorder.openEncoder(strFinalPath, imageWidth, imageHeight);
 
         Log.i(TAG, "recorder initialize success");
@@ -274,13 +275,18 @@ public class WXLikeVideoRecorder implements Camera.PreviewCallback, CameraPrevie
 //                return;
 //            }
             /* get video data */
+
             if (recording) {
+                if ((System.currentTimeMillis() - startTime) >= MAX_RECORD_TIME) {
+                    stopRecording();
+                    return;
+                }
+
                 long time = System.currentTimeMillis();
                 synchronized (mRecordLock) {
                     recorder.encodeVideo(data);
                 }
-                time = System.currentTimeMillis() - time;
-                Log.d(TAG, "onPreviewFrame: " + time);
+                Log.d(TAG, "encodeVideo time = " + (System.currentTimeMillis() - time));
             }
         } finally {
             camera.addCallbackBuffer(data);
