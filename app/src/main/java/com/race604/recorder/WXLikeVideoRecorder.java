@@ -138,9 +138,9 @@ public class WXLikeVideoRecorder implements Camera.PreviewCallback, CameraPrevie
         strFinalPath = FileUtil.createFilePath(mFolder, null, Long.toString(System.currentTimeMillis()));
         // 初始化时设置录像机的目标视频大小
         recorder = new JVideo();
-        recorder.setVideoSize(480, 480);
-        recorder.setVideoBitRate(600000);
-        recorder.setVideoCompressLevel(5);
+        recorder.setVideoSize(320, 320);
+        recorder.setVideoBitRate(400000);
+        recorder.setVideoCompressLevel(6);
         recorder.openEncoder(strFinalPath, imageWidth, imageHeight);
 
         Log.i(TAG, "recorder initialize success");
